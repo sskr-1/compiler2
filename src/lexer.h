@@ -29,6 +29,8 @@ struct Token {
     TokenKind kind {TokenKind::End};
     std::string text;
     long intVal {0};
+    int line {1};
+    int col {1};
 };
 
 class Lexer {
@@ -47,6 +49,8 @@ private:
     size_t pos {0};
     Token lookahead;
     bool hasLookahead {false};
+    int line {1};
+    int col {1};
 };
 
 } // namespace cmini

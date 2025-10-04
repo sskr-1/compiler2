@@ -26,7 +26,14 @@ int main(int argc, char** argv) {
 
     Lexer lex(ss.str());
     Parser parser(lex);
-    auto prog = parser.parseProgram();
+    std::unique_ptr<Program> prog;
+    try { prog = parser.parseProgram(); }
+    catch (const std::exception&) {}
+
+    if (!parser.errors().empty()) {
+        for (const auto& e : parser.errors()) std::cerr << e << "\n";
+        return 1;
+    }
 
     Semantic sem; sem.analyze(*prog);
     if (!sem.diags.ok()) {

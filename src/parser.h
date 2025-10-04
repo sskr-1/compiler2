@@ -10,6 +10,7 @@ public:
     explicit Parser(Lexer& lex) : lex(lex) {}
 
     std::unique_ptr<Program> parseProgram();
+    const std::vector<std::string>& errors() const { return errs; }
 
 private:
     // helpers
@@ -17,6 +18,8 @@ private:
     Token eat();
     bool accept(TokenKind k);
     void expect(TokenKind k, const char* msg);
+    [[noreturn]] void failHere(const std::string& msg);
+    void syncToSemicolon();
 
     // grammar
     std::unique_ptr<Function> function();
@@ -50,6 +53,7 @@ private:
     std::unique_ptr<Expr> primary();
 
     Lexer& lex;
+    std::vector<std::string> errs;
 };
 
 } // namespace cmini

@@ -1,12 +1,28 @@
 #include "parser.h"
 #include <stdexcept>
+#include <sstream>
 
 namespace cmini {
 
 const Token& Parser::peek() { return lex.peek(); }
 Token Parser::eat() { return lex.next(); }
 bool Parser::accept(TokenKind k) { if (peek().kind==k) { eat(); return true; } return false; }
-void Parser::expect(TokenKind k, const char* msg) { if (!accept(k)) throw std::runtime_error(msg); }
+void Parser::expect(TokenKind k, const char* msg) {
+    if (!accept(k)) failHere(std::string("expected ")+msg);
+}
+
+[[noreturn]] void Parser::failHere(const std::string& msg) {
+    const Token& t = peek();
+    std::ostringstream os; os << "parse error at line " << t.line << ", col " << t.col << ": " << msg;
+    errs.push_back(os.str());
+    throw std::runtime_error(errs.back());
+}
+
+void Parser::syncToSemicolon() {
+    // consume tokens until ';' or '}' to continue parsing
+    while (peek().kind != TokenKind::Semicolon && peek().kind != TokenKind::RBrace && peek().kind != TokenKind::End) eat();
+    if (peek().kind == TokenKind::Semicolon) eat();
+}
 
 Type Parser::typeSpec() {
     Token t = eat();
@@ -67,7 +83,7 @@ std::unique_ptr<Stmt> Parser::declOrExprStmt() {
     // Lookahead for a type keyword
     if (peek().kind==TokenKind::KwInt || peek().kind==TokenKind::KwChar || peek().kind==TokenKind::KwFloat || peek().kind==TokenKind::KwVoid) {
         Type t = typeSpec();
-        Token id = eat(); if (id.kind!=TokenKind::Identifier) throw std::runtime_error("identifier expected");
+        Token id = eat(); if (id.kind!=TokenKind::Identifier) failHere("identifier expected");
         parseArraySuffix(t);
         auto decl = std::make_unique<Decl>(t, id.text);
         if (accept(TokenKind::Assign)) { auto e = assign(); decl->init = std::move(e); }
@@ -75,7 +91,8 @@ std::unique_ptr<Stmt> Parser::declOrExprStmt() {
         return decl;
     }
     auto e = expr();
-    expect(TokenKind::Semicolon, ";");
+    // require ';' here; if missing, report and resync
+    if (!accept(TokenKind::Semicolon)) { errs.push_back("parse error at line " + std::to_string(peek().line) + ": missing ';' after expression"); syncToSemicolon(); }
     return std::make_unique<ExprStmt>(std::move(e));
 }
 
@@ -268,24 +285,26 @@ std::unique_ptr<Expr> Parser::primary() {
 
 std::unique_ptr<Function> Parser::function() {
     Type ret = typeSpec();
-    Token id = eat(); if (id.kind!=TokenKind::Identifier) throw std::runtime_error("function name");
+    Token id = eat(); if (id.kind!=TokenKind::Identifier) failHere("function name");
     expect(TokenKind::LParen, "(");
     std::vector<Param> params;
     if (peek().kind != TokenKind::RParen) {
-        params.push_back(param());
-        while (accept(TokenKind::Comma)) params.push_back(param());
+        try { params.push_back(param()); while (accept(TokenKind::Comma)) params.push_back(param()); }
+        catch (const std::exception&) { syncToSemicolon(); }
     }
     expect(TokenKind::RParen, ")");
     auto fun = std::make_unique<Function>();
     fun->retType = ret; fun->name = id.text; fun->params = std::move(params);
-    fun->body = block();
+    try { fun->body = block(); }
+    catch (const std::exception&) { /* error captured, continue */ }
     return fun;
 }
 
 std::unique_ptr<Program> Parser::parseProgram() {
     auto p = std::make_unique<Program>();
     while (peek().kind != TokenKind::End) {
-        p->functions.push_back(function());
+        try { p->functions.push_back(function()); }
+        catch (const std::exception&) { syncToSemicolon(); eat(); }
     }
     return p;
 }
