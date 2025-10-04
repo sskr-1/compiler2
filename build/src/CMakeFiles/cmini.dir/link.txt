@@ -1,0 +1,1 @@
+/usr/bin/c++ -Xlinker --dependency-file=CMakeFiles/cmini.dir/link.d CMakeFiles/cmini.dir/main.cpp.o CMakeFiles/cmini.dir/lexer.cpp.o CMakeFiles/cmini.dir/parser.cpp.o CMakeFiles/cmini.dir/ast.cpp.o CMakeFiles/cmini.dir/semantic.cpp.o CMakeFiles/cmini.dir/irgen.cpp.o -o cmini
