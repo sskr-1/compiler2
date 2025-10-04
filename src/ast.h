@@ -9,17 +9,16 @@
 
 namespace cmini {
 
-enum class BaseType {
-    Void,
-    Int,
-    Char,
-    Float
-};
+enum class BaseType { Void, Int, Char, Float };
+
+enum class NamedKind { None, Enum, Union };
 
 struct Type {
     BaseType base {BaseType::Int};
-    bool isPointer {false};
-    std::optional<size_t> arrayLen; // only for 1-D arrays for now
+    int pointerLevels {0};
+    std::vector<size_t> arrayDims; // multi-dimensional array sizes outermost-first
+    NamedKind namedKind {NamedKind::None};
+    std::string namedTag; // enum/union tag name if any
 
     static Type voidTy();
     static Type intTy();

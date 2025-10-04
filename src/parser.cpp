@@ -16,17 +16,31 @@ Type Parser::typeSpec() {
         case TokenKind::KwChar: ty.base = BaseType::Char; break;
         case TokenKind::KwFloat: ty.base = BaseType::Float; break;
         case TokenKind::KwVoid: ty.base = BaseType::Void; break;
+        case TokenKind::KwEnum: ty.base = BaseType::Int; break; // enums lower to int
+        case TokenKind::KwUnion: ty.base = BaseType::Int; break; // unions opaque for MVP
         default: throw std::runtime_error("type expected");
     }
-    // handle pointer stars: int *
-    while (accept(TokenKind::Star)) ty.isPointer = true;
-    return ty;
+    return afterTypeModifiers(ty);
+}
+
+Type Parser::afterTypeModifiers(Type base) {
+    // handle multi-level pointers: int **
+    while (accept(TokenKind::Star)) base.pointerLevels++;
+    // handle arrays: int a[10][20]
+    while (accept(TokenKind::LBracket)) {
+        Token d = eat();
+        if (d.kind != TokenKind::Integer) throw std::runtime_error("array size integer expected");
+        base.arrayDims.push_back((size_t)d.intVal);
+        expect(TokenKind::RBracket, "]");
+    }
+    return base;
 }
 
 Param Parser::param() {
     Type t = typeSpec();
     Token id = eat();
     if (id.kind != TokenKind::Identifier) throw std::runtime_error("param name expected");
+    parseArraySuffix(t);
     return {t, id.text};
 }
 
@@ -40,11 +54,21 @@ std::unique_ptr<Block> Parser::block() {
     return blk;
 }
 
+void Parser::parseArraySuffix(Type& t) {
+    while (accept(TokenKind::LBracket)) {
+        Token d = eat();
+        if (d.kind != TokenKind::Integer) throw std::runtime_error("array size integer expected");
+        t.arrayDims.push_back((size_t)d.intVal);
+        expect(TokenKind::RBracket, "]");
+    }
+}
+
 std::unique_ptr<Stmt> Parser::declOrExprStmt() {
     // Lookahead for a type keyword
     if (peek().kind==TokenKind::KwInt || peek().kind==TokenKind::KwChar || peek().kind==TokenKind::KwFloat || peek().kind==TokenKind::KwVoid) {
         Type t = typeSpec();
         Token id = eat(); if (id.kind!=TokenKind::Identifier) throw std::runtime_error("identifier expected");
+        parseArraySuffix(t);
         auto decl = std::make_unique<Decl>(t, id.text);
         if (accept(TokenKind::Assign)) { auto e = assign(); decl->init = std::move(e); }
         expect(TokenKind::Semicolon, ";");

@@ -4,12 +4,17 @@
 namespace cmini {
 
 std::string IRGen::typeToIR(const Type& t) {
+    std::string b;
     switch (t.base) {
-        case BaseType::Void: return "void";
-        case BaseType::Int: return t.isPointer?"i32*":"i32";
-        case BaseType::Char: return t.isPointer?"i8*":"i8";
-        case BaseType::Float: return "float";
+        case BaseType::Void: b = "void"; break;
+        case BaseType::Int: b = "i32"; break;
+        case BaseType::Char: b = "i8"; break;
+        case BaseType::Float: b = "float"; break;
     }
+    for (int i=0;i<t.pointerLevels;++i) b += "*";
+    // arrays are lowered as pointers to first element for now
+    if (!t.arrayDims.empty()) b += "*";
+    return b;
     return "i32";
 }
 
@@ -31,8 +36,8 @@ void IRGen::gen(Function& f) {
     }
     sig << ") {\n";
     out += sig.str();
-    allocaStack.clear(); valueStack.clear();
-    allocaStack.emplace_back(); valueStack.emplace_back();
+    allocaStack.clear(); valueStack.clear(); typeStack.clear();
+    allocaStack.emplace_back(); valueStack.emplace_back(); typeStack.emplace_back();
     if (f.body) {
         out += "entry:\n";
         gen(*f.body);
@@ -61,7 +66,8 @@ void IRGen::gen(Stmt& s) {
         out += "  " + tmp + " = alloca " + irTy + "\n";
         if (!allocaStack.empty()) allocaStack.back()[d->name] = tmp;
         out += "  ; map " + d->name + " -> " + tmp + "\n";
-        if (!valueStack.empty()) valueStack.back()[d->name] = tmp; // point value to ptr for name resolution
+        if (!valueStack.empty()) valueStack.back()[d->name] = tmp; // ptr alias
+        if (!typeStack.empty()) typeStack.back()[d->name] = d->varType;
         if (d->init) {
             std::string val = gen(*d->init);
             out += "  store " + irTy + " " + val + ", " + irTy + "* " + tmp + "\n";
@@ -90,6 +96,16 @@ std::string IRGen::gen(Expr& e) {
         out += "  ; fallback param " + v->name + "\n";
         return "%" + v->name;
     }
+    if (auto idx = dynamic_cast<ArrayIndex*>(&e)) {
+        // compute address: base + index * elementSize; treat as i32 arrays
+        std::string basePtr = genAddress(*idx->base);
+        std::string indexVal = gen(*idx->index);
+        std::string gep = newTmp();
+        out += "  " + gep + " = getelementptr i32, i32* " + basePtr + ", i32 " + indexVal + "\n";
+        std::string loadv = newTmp();
+        out += "  " + loadv + " = load i32, i32* " + gep + "\n";
+        return loadv;
+    }
     if (auto b = dynamic_cast<BinaryExpr*>(&e)) {
         std::string l = gen(*b->lhs); std::string r = gen(*b->rhs); std::string t=newTmp();
         const char* op = nullptr;
@@ -109,9 +125,35 @@ std::string IRGen::gen(Expr& e) {
                 return val;
             }
         }
+        if (auto la = dynamic_cast<ArrayIndex*>(a->lhs.get())) {
+            std::string addr = genAddress(*la);
+            std::string val = gen(*a->rhs);
+            out += "  store i32 " + val + ", i32* " + addr + "\n";
+            return val;
+        }
         std::string rhs = gen(*a->rhs); return rhs;
     }
     return "0";
+}
+
+std::string IRGen::genAddress(Expr& e) {
+    if (auto v = dynamic_cast<VarRef*>(&e)) {
+        if (auto p = lookupAlloca(v->name)) return *p;
+        if (auto q = lookupValue(v->name)) return *q;
+        return "%" + v->name; // parameter address (already value, not address) – best-effort
+    }
+    if (auto idx = dynamic_cast<ArrayIndex*>(&e)) {
+        std::string base = genAddress(*idx->base);
+        std::string index = gen(*idx->index);
+        std::string gep = newTmp();
+        out += "  " + gep + " = getelementptr i32, i32* " + base + ", i32 " + index + "\n";
+        return gep;
+    }
+    // fallback: compute and spill
+    std::string val = gen(e);
+    std::string tmp = newTmp();
+    out += "  " + tmp + " = alloca i32\n  store i32 " + val + ", i32* " + tmp + "\n";
+    return tmp;
 }
 
 std::string* IRGen::lookupAlloca(const std::string& name) {
@@ -124,6 +166,14 @@ std::string* IRGen::lookupAlloca(const std::string& name) {
 
 std::string* IRGen::lookupValue(const std::string& name) {
     for (auto it = valueStack.rbegin(); it != valueStack.rend(); ++it) {
+        auto f = it->find(name);
+        if (f != it->end()) return &f->second;
+    }
+    return nullptr;
+}
+
+const Type* IRGen::lookupType(const std::string& name) {
+    for (auto it = typeStack.rbegin(); it != typeStack.rend(); ++it) {
         auto f = it->find(name);
         if (f != it->end()) return &f->second;
     }

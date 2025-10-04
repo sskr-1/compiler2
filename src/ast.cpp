@@ -14,8 +14,8 @@ std::string Type::toString() const {
         case BaseType::Char: os << "char"; break;
         case BaseType::Float: os << "float"; break;
     }
-    if (isPointer) os << "*";
-    if (arrayLen) os << "[" << *arrayLen << "]";
+    for (int i=0;i<pointerLevels;++i) os << "*";
+    for (size_t n : arrayDims) os << "[" << n << "]";
     return os.str();
 }
 

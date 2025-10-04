@@ -49,6 +49,8 @@ Token Lexer::scan() {
         if (s=="char") return {TokenKind::KwChar, s};
         if (s=="float") return {TokenKind::KwFloat, s};
         if (s=="void") return {TokenKind::KwVoid, s};
+        if (s=="enum") return {TokenKind::KwEnum, s};
+        if (s=="union") return {TokenKind::KwUnion, s};
         if (s=="if") return {TokenKind::KwIf, s};
         if (s=="else") return {TokenKind::KwElse, s};
         if (s=="for") return {TokenKind::KwFor, s};

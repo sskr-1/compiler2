@@ -21,7 +21,9 @@ private:
     // grammar
     std::unique_ptr<Function> function();
     Type typeSpec();
+    Type afterTypeModifiers(Type base);
     Param param();
+    void parseArraySuffix(Type& t);
     std::unique_ptr<Block> block();
     std::unique_ptr<Stmt> statement();
     std::unique_ptr<Stmt> ifStmt();
