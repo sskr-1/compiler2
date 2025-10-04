@@ -1170,6 +1170,7 @@ src/CMakeFiles/cmini.dir/parser.cpp.o: /workspace/src/parser.cpp \
   /usr/include/c++/14/bits/hashtable_policy.h \
   /usr/include/c++/14/bits/invoke.h \
   /usr/include/c++/14/bits/ios_base.h \
+  /usr/include/c++/14/bits/istream.tcc \
   /usr/include/c++/14/bits/iterator_concepts.h \
   /usr/include/c++/14/bits/locale_classes.h \
   /usr/include/c++/14/bits/locale_classes.tcc \
@@ -1199,6 +1200,7 @@ src/CMakeFiles/cmini.dir/parser.cpp.o: /workspace/src/parser.cpp \
   /usr/include/c++/14/bits/shared_ptr.h \
   /usr/include/c++/14/bits/shared_ptr_atomic.h \
   /usr/include/c++/14/bits/shared_ptr_base.h \
+  /usr/include/c++/14/bits/sstream.tcc \
   /usr/include/c++/14/bits/std_abs.h \
   /usr/include/c++/14/bits/std_mutex.h \
   /usr/include/c++/14/bits/stl_algobase.h \
@@ -1249,6 +1251,7 @@ src/CMakeFiles/cmini.dir/parser.cpp.o: /workspace/src/parser.cpp \
   /usr/include/c++/14/initializer_list \
   /usr/include/c++/14/ios \
   /usr/include/c++/14/iosfwd \
+  /usr/include/c++/14/istream \
   /usr/include/c++/14/memory \
   /usr/include/c++/14/new \
   /usr/include/c++/14/numbers \
@@ -1257,6 +1260,7 @@ src/CMakeFiles/cmini.dir/parser.cpp.o: /workspace/src/parser.cpp \
   /usr/include/c++/14/pstl/execution_defs.h \
   /usr/include/c++/14/pstl/glue_memory_defs.h \
   /usr/include/c++/14/pstl/pstl_config.h \
+  /usr/include/c++/14/sstream \
   /usr/include/c++/14/stdexcept \
   /usr/include/c++/14/streambuf \
   /usr/include/c++/14/string \

@@ -64,7 +64,12 @@ std::unique_ptr<Block> Parser::block() {
     expect(TokenKind::LBrace, "{");
     auto blk = std::make_unique<Block>();
     while (peek().kind != TokenKind::RBrace && peek().kind != TokenKind::End) {
-        blk->items.push_back(statement());
+        try {
+            blk->items.push_back(statement());
+        } catch (const std::exception&) {
+            // record already done; recover to next statement
+            syncToSemicolon();
+        }
     }
     expect(TokenKind::RBrace, "}");
     return blk;
@@ -279,7 +284,11 @@ std::unique_ptr<Expr> Parser::primary() {
         case TokenKind::Char: return std::make_unique<CharLiteral>((char)t.intVal);
         case TokenKind::String: return std::make_unique<StringLiteral>(t.text);
         case TokenKind::LParen: { auto e = expr(); expect(TokenKind::RParen, ")"); return e; }
-        default: throw std::runtime_error("expression expected");
+        default: {
+            std::ostringstream os; os << "parse error at line " << t.line << ", col " << t.col << ": expression expected";
+            errs.push_back(os.str());
+            throw std::runtime_error(errs.back());
+        }
     }
 }
 
