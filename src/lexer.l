@@ -6,46 +6,45 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <FlexLexer.h>
 
 // Forward declaration
-struct str_list {
-    std::vector<std::string> arr;
-};
+struct str_list { std::vector<std::string> arr; };
 
-// Include the generated header
-#include "feature_parser.tab.hh"
+// Include the generated header (from parser.y)
+#include "parser.tab.hh"
 
 int yylineno = 1;
 
-// Global yylex function for C++ parser compatibility
-// This matches the signature expected by the generated parser
+// A single global lexer instance and a helper to feed it streams
+static yyFlexLexer g_lexer;
+extern "C" void lexer_switch_streams(std::istream* in) {
+    g_lexer.switch_streams(in, nullptr);
+}
+
+// Global yylex function for the C++ bison parser
 int yylex(void* yylval) {
-    static yyFlexLexer lexer;
-    int token = lexer.yylex();
-    
-    // Synchronize line number with the global yylineno
-    yylineno = lexer.lineno();
-    
-    // Set semantic values based on token type
+    int token = g_lexer.yylex();
+    yylineno = g_lexer.lineno();
+
     if (yylval) {
         yy::parser::semantic_type* semantic_val = static_cast<yy::parser::semantic_type*>(yylval);
         switch (token) {
             case yy::parser::token::IDENTIFIER:
-                semantic_val->str = new std::string(lexer.YYText());
+                semantic_val->str = new std::string(g_lexer.YYText());
                 break;
             case yy::parser::token::CONST_INT:
-                semantic_val->ival = atoi(lexer.YYText());
+                semantic_val->ival = atoi(g_lexer.YYText());
                 break;
             case yy::parser::token::CONST_FLOAT:
-                semantic_val->fval = atof(lexer.YYText());
+                semantic_val->fval = atof(g_lexer.YYText());
                 break;
             case yy::parser::token::CONST_CHAR:
             case yy::parser::token::STRING_LITERAL:
-                semantic_val->str = new std::string(lexer.YYText());
+                semantic_val->str = new std::string(g_lexer.YYText());
                 break;
         }
     }
-    
     return token;
 }
 %}
